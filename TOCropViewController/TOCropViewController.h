@@ -67,7 +67,7 @@ typedef NS_ENUM(NSInteger, TOCropViewControllerToolbarPosition) {
  @param image The newly cropped image.
  @param cropRect A rectangle indicating the crop region of the image the user chose (In the original image's local co-ordinate space)
  */
-- (void)cropViewController:(TOCropViewController *)cropViewController didCropToImage:(UIImage *)image withRect:(CGRect)cropRect angle:(NSInteger)angle;
+- (void)cropViewController:(TOCropViewController *)cropViewController didCropToImage:(UIImage *)image withRect:(CGRect)cropRect angle:(NSInteger)angle exifInfo:(NSDictionary *)exifInfo;
 
 /**
  If implemented, when the user hits cancel, or completes a 
@@ -85,6 +85,11 @@ typedef NS_ENUM(NSInteger, TOCropViewControllerToolbarPosition) {
  The original, uncropped image that was passed to this controller.
  */
 @property (nonatomic, readonly) UIImage *image;
+
+/**
+ * A dictionary of key-value pairs for an image that uses Exchangeable Image File Format (EXIF).
+ */
+@property (nonatomic, copy) NSDictionary *exifInfo;
 
 /**
  The crop view managed by this view controller.
@@ -224,4 +229,3 @@ typedef NS_ENUM(NSInteger, TOCropViewControllerToolbarPosition) {
 - (void)dismissAnimatedFromParentViewController:(UIViewController *)viewController toFrame:(CGRect)frame completion:(void (^)(void))completion;
 
 @end
-
