@@ -1,5 +1,5 @@
 //
-//  TOCropViewController.h
+//  TOCropViewController.m
 //
 //  Copyright 2015-2016 Timothy Oliver. All rights reserved.
 //
@@ -28,21 +28,12 @@
 
 @interface TOCropViewController () <UIActionSheetDelegate, UIViewControllerTransitioningDelegate, TOCropViewDelegate>
 
-/* The target image */
 @property (nonatomic, readwrite) UIImage *image;
-
-/* Views */
 @property (nonatomic, strong) TOCropToolbar *toolbar;
 @property (nonatomic, strong, readwrite) TOCropView *cropView;
-@property (nonatomic, strong) UIView *toolbarSnapshotView;
-
-/* Transition animation controller */
+@property (nonatomic, strong) UIView *snapshotView;
 @property (nonatomic, strong) TOCropViewControllerTransitioning *transitionController;
 @property (nonatomic, assign) BOOL inTransition;
-
-/* If pushed from a navigation controller, the visibility of that controller's bars. */
-@property (nonatomic, assign) BOOL navigationBarHidden;
-@property (nonatomic, assign) BOOL toolbarHidden;
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -125,14 +116,6 @@
         self.inTransition = YES;
         [self setNeedsStatusBarAppearanceUpdate];
     }
-    
-    if (self.navigationController) {
-        self.navigationBarHidden = self.navigationController.navigationBarHidden;
-        self.toolbarHidden = self.navigationController.toolbarHidden;
-        
-        [self.navigationController setNavigationBarHidden:YES animated:animated];
-        [self.navigationController setToolbarHidden:YES animated:animated];
-    }
 }
 
 - (void)viewDidAppear:(BOOL)animated
@@ -152,11 +135,6 @@
     [super viewWillDisappear:animated];
     self.inTransition = YES;
     [UIView animateWithDuration:0.5f animations:^{ [self setNeedsStatusBarAppearanceUpdate]; }];
-    
-    if (self.navigationController) {
-        [self.navigationController setNavigationBarHidden:self.navigationBarHidden animated:animated];
-        [self.navigationController setToolbarHidden:self.toolbarHidden animated:animated];
-    }
 }
 
 - (void)viewDidDisappear:(BOOL)animated
@@ -169,31 +147,12 @@
 #pragma mark - Status Bar -
 - (UIStatusBarStyle)preferredStatusBarStyle
 {
-    if (self.navigationController) {
-        return UIStatusBarStyleLightContent;
-    }
-    
     return UIStatusBarStyleDefault;
 }
 
 - (BOOL)prefersStatusBarHidden
 {
-    //If we belong to a UINavigationController, defer to its status bar style
-    if (self.navigationController) {
-        return self.navigationController.prefersStatusBarHidden;
-    }
-    
-    //If our presenting controller has already hidden the status bar,
-    //hide the status bar by default
-    if (self.presentingViewController.prefersStatusBarHidden) {
-        return YES;
-    }
-    
-    BOOL hidden = YES;
-    hidden = hidden && !(self.inTransition);          // Not currently in a presentation animation (Where removing the status bar would break the layout)
-    hidden = hidden && !(self.view.superview == nil); // Not currently waiting to the added to a super view
-    
-    return hidden;
+    return !(self.inTransition) && !(self.view.superview == nil);
 }
 
 - (CGRect)frameForToolBarWithVerticalLayout:(BOOL)verticalLayout
@@ -208,7 +167,7 @@
     else {
         frame.origin.x = 0.0f;
         
-        if (self.toolbarPosition == TOCropViewControllerToolbarPositionBottom) {
+        if (_toolbarPosition == TOCropViewControllerToolbarPositionBottom) {
             frame.origin.y = CGRectGetHeight(self.view.bounds) - 44.0f;
         } else {
             frame.origin.y = 0;
@@ -216,11 +175,6 @@
         
         frame.size.width = CGRectGetWidth(self.view.bounds);
         frame.size.height = 44.0f;
-        
-        // If the bar is at the top of the screen and the status bar is visible, account for the status bar height
-        if (self.toolbarPosition == TOCropViewControllerToolbarPositionTop && self.prefersStatusBarHidden == NO) {
-            frame.size.height = 64.0f;
-        }
     }
     
     return frame;
@@ -260,7 +214,6 @@
     [self.cropView moveCroppedContentToCenterAnimated:NO];
     
     [UIView performWithoutAnimation:^{
-        self.toolbar.statusBarVisible = (self.toolbarPosition == TOCropViewControllerToolbarPositionTop && !self.prefersStatusBarHidden);
         self.toolbar.frame = [self frameForToolBarWithVerticalLayout:verticalLayout];
         [self.toolbar setNeedsLayout];
     }];
@@ -273,15 +226,15 @@
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 - (void)willRotateToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation duration:(NSTimeInterval)duration
 {
-    self.toolbarSnapshotView = [self.toolbar snapshotViewAfterScreenUpdates:NO];
-    self.toolbarSnapshotView.frame = self.toolbar.frame;
+    self.snapshotView = [self.toolbar snapshotViewAfterScreenUpdates:NO];
+    self.snapshotView.frame = self.toolbar.frame;
     
     if (UIInterfaceOrientationIsLandscape(toInterfaceOrientation))
-        self.toolbarSnapshotView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleTopMargin;
+        self.snapshotView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleTopMargin;
     else
-        self.toolbarSnapshotView.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleRightMargin;
+        self.snapshotView.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleRightMargin;
     
-    [self.view addSubview:self.toolbarSnapshotView];
+    [self.view addSubview:self.snapshotView];
     
     [UIView performWithoutAnimation:^{
         self.toolbar.frame = [self frameForToolBarWithVerticalLayout:UIInterfaceOrientationIsPortrait(toInterfaceOrientation)];
@@ -307,15 +260,15 @@
     [self.cropView performRelayoutForRotation];
     
     [UIView animateWithDuration:duration animations:^{
-        self.toolbarSnapshotView.alpha = 0.0f;
+        self.snapshotView.alpha = 0.0f;
         self.toolbar.alpha = 1.0f;
     }];
 }
 
 - (void)didRotateFromInterfaceOrientation:(UIInterfaceOrientation)fromInterfaceOrientation
 {
-    [self.toolbarSnapshotView removeFromSuperview];
-    self.toolbarSnapshotView = nil;
+    [self.snapshotView removeFromSuperview];
+    self.snapshotView = nil;
     
     [self.cropView setSimpleMode:NO animated:YES];
 }
@@ -598,13 +551,8 @@
         return;
     }
     
-    if (self.navigationController) {
-        [self.navigationController popViewControllerAnimated:YES];
-    }
-    else {
-        self.modalTransitionStyle = UIModalTransitionStyleCoverVertical;
-        [self.presentingViewController dismissViewControllerAnimated:YES completion:nil];
-    }
+    self.modalTransitionStyle = UIModalTransitionStyleCoverVertical;
+    [self.presentingViewController dismissViewControllerAnimated:YES completion:nil];
 }
 
 - (void)doneButtonTapped
@@ -691,7 +639,7 @@
         
         //dispatch on the next run-loop so the animation isn't interuppted by the crop operation
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.03f * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            [self.delegate cropViewController:self didCropToImage:image withRect:cropFrame angle:angle];
+            [self.delegate cropViewController:self didCropToImage:image withRect:cropFrame angle:angle exifInfo:self.exifInfo];
         });
     }
     else {
