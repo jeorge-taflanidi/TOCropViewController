@@ -628,7 +628,7 @@
         [self.delegate cropViewController:self didCropImageToRect:cropFrame angle:angle];
     }
     //If the delegate that requires the specific cropped image is provided, call it
-    else if ([self.delegate respondsToSelector:@selector(cropViewController:didCropToImage:withRect:angle:)]) {
+    else if ([self.delegate respondsToSelector:@selector(cropViewController:didCropToImage:withRect:angle:exifInfo:)]) {
         UIImage *image = nil;
         if (angle == 0 && CGRectEqualToRect(cropFrame, (CGRect){CGPointZero, self.image.size})) {
             image = self.image;
